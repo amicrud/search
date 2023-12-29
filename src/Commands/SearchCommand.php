@@ -8,7 +8,7 @@ use Symfony\Component\Process\Process;
 
 class SearchCommand extends Command
 {
-    protected $signature = 'method:search {keyword} {--vendor} {--storage}';
+    protected $signature = 'amicrud:search {keyword} {--vendor} {--storage}';
 
     protected $description = 'Search for a method, class, or variable in the project';
 
