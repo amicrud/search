@@ -16,43 +16,64 @@ class SearchCommand extends Command
     {
         $keyword = $this->argument('keyword');
 
-        // trying to restrict only single quote keyword
-        // if (!empty($keyword) && 
-        // (($keyword[0] === '"' && $keyword[strlen($keyword) - 1] === '"') ||
-        //  ($keyword[0] === "'" && $keyword[strlen($keyword) - 1] === "'"))) {
-        //     $this->error("Please avoid wrapping the string with quotes. Example: php artisan method:search $keyword");
-        //     return;
-        // }
-
         $vendorOption = $this->option('vendor');
         $storageOption = $this->option('storage');
 
         // Use grep to search for the keyword in PHP files excluding the vendor folder
-        if ($vendorOption||$storageOption) {
+        if ($vendorOption || $storageOption) {
             if (!$vendorOption) {
-                $process = new Process(['grep', '-r', '--include=*.php','--exclude-dir=vendor', $keyword, base_path()]);
+                $process = new Process(['grep', '-rn', '--include=*.php', '--exclude-dir=vendor', $keyword, base_path()]);
             }
             if (!$storageOption) {
-                $process = new Process(['grep', '-r', '--include=*.php','--exclude-dir=storage', $keyword, base_path()]);
+                $process = new Process(['grep', '-rn', '--include=*.php', '--exclude-dir=storage', $keyword, base_path()]);
             }
-            if ($vendorOption&&$storageOption) {
-                $process = new Process(['grep', '-r', '--include=*.php', $keyword, base_path()]);
+            if ($vendorOption && $storageOption) {
+                $process = new Process(['grep', '-rn', '--include=*.php', $keyword, base_path()]);
             }
-           
+        } else {
+            $process = new Process(['grep', '-rn', '--include=*.php', '--exclude-dir=vendor', '--exclude-dir=storage', $keyword, base_path()]);
         }
-        else{
-            $process = new Process(['grep', '-r', '--include=*.php', '--exclude-dir=vendor', '--exclude-dir=storage', $keyword, base_path()]);
-        }
-    
-        
+
         try {
             $process->mustRun();
 
             // Get the output and display it
             $output = $process->getOutput();
-            $this->info($output);
+            if (empty($output)) {
+                $this->info('No matches found for the keyword.');
+            } else {
+                return $this->formatOutput($output);
+                // $this->info($output);
+            }
         } catch (ProcessFailedException $exception) {
-            $this->error('Search failed. ' . $exception->getMessage());
+            $this->error('Keyword not found');
+        } catch (\Exception $exception) {
+            $this->error('An unexpected error occurred: ' . $exception->getMessage());
+        }
+    }
+
+    protected function formatOutput($output)
+    {
+        $lines = explode(PHP_EOL, $output);
+        foreach ($lines as $line) {
+            if (empty($line)) {
+                continue;
+            }
+
+            preg_match('/^(.*?):(\d+):(.*)$/', $line, $matches);
+            if (count($matches) == 4) {
+                $filePath = $matches[1];
+                $lineNumber = $matches[2];
+                $preview = trim($matches[3]);
+
+                $this->line(str_repeat('-', 80));
+                $this->line(str_repeat('-', 80));
+                $this->line("File: <fg=green>{$filePath}</>");
+                $this->line("Line: <fg=yellow>{$lineNumber}</>");
+                $this->line("Preview: <fg=blue>{$preview}</>");
+                $this->line(str_repeat('-', 80));
+                $this->line(str_repeat('-', 80));
+            }
         }
     }
 }
