@@ -66,12 +66,9 @@ class SearchCommand extends Command
                 $lineNumber = $matches[2];
                 $preview = trim($matches[3]);
 
-                $this->line(str_repeat('-', 80));
-                $this->line(str_repeat('-', 80));
                 $this->line("File: <fg=green>{$filePath}</>");
                 $this->line("Line: <fg=yellow>{$lineNumber}</>");
                 $this->line("Preview: <fg=blue>{$preview}</>");
-                $this->line(str_repeat('-', 80));
                 $this->line(str_repeat('-', 80));
             }
         }
