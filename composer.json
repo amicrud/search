@@ -15,8 +15,7 @@
         }
     ],
     "require": {
-        "php": ">=7.4",
-        "symfony/process": "^5.0"
+        "php": ">=7.4"
     },
     "extra": {
         "laravel": {
