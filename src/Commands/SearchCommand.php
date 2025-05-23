@@ -8,43 +8,48 @@ use Symfony\Component\Process\Process;
 
 class SearchCommand extends Command
 {
-    protected $signature = 'amicrud:search {keyword} {--vendor} {--storage}';
+    protected $signature = 'amicrud:search {keyword} {--vendor} {--storage} {--replace=}';
 
-    protected $description = 'Search for a method, class, or variable in the project';
+    protected $description = 'Search for a method, class, or variable in the project, optionally replacing it';
 
     public function handle()
     {
         $keyword = $this->argument('keyword');
+        $replaceWith = $this->option('replace');
 
         $vendorOption = $this->option('vendor');
         $storageOption = $this->option('storage');
 
-        // Use grep to search for the keyword in PHP files excluding the vendor folder
-        if ($vendorOption || $storageOption) {
-            if (!$vendorOption) {
-                $process = new Process(['grep', '-rn', '--include=*.php', '--exclude-dir=vendor', $keyword, base_path()]);
-            }
-            if (!$storageOption) {
-                $process = new Process(['grep', '-rn', '--include=*.php', '--exclude-dir=storage', $keyword, base_path()]);
-            }
-            if ($vendorOption && $storageOption) {
-                $process = new Process(['grep', '-rn', '--include=*.php', $keyword, base_path()]);
-            }
-        } else {
-            $process = new Process(['grep', '-rn', '--include=*.php', '--exclude-dir=vendor', '--exclude-dir=storage', $keyword, base_path()]);
+        $grepCommand = ['grep', '-rn', '--include=*.php'];
+
+        if (!$vendorOption) {
+            $grepCommand[] = '--exclude-dir=vendor';
         }
 
+        if (!$storageOption) {
+            $grepCommand[] = '--exclude-dir=storage';
+        }
+
+        $grepCommand[] = $keyword;
+        $grepCommand[] = base_path();
+
         try {
+            $process = new Process($grepCommand);
             $process->mustRun();
 
-            // Get the output and display it
             $output = $process->getOutput();
+
             if (empty($output)) {
                 $this->info('No matches found for the keyword.');
-            } else {
-                return $this->formatOutput($output);
-                // $this->info($output);
+                return;
             }
+
+            $this->formatOutput($output);
+
+            if ($replaceWith !== null) {
+                $this->performReplacement($output, $keyword, $replaceWith);
+            }
+
         } catch (ProcessFailedException $exception) {
             $this->error('Keyword not found');
         } catch (\Exception $exception) {
@@ -56,20 +61,38 @@ class SearchCommand extends Command
     {
         $lines = explode(PHP_EOL, $output);
         foreach ($lines as $line) {
-            if (empty($line)) {
-                continue;
-            }
+            if (empty($line)) continue;
 
             preg_match('/^(.*?):(\d+):(.*)$/', $line, $matches);
             if (count($matches) == 4) {
-                $filePath = $matches[1];
-                $lineNumber = $matches[2];
-                $preview = trim($matches[3]);
+                [$fullMatch, $filePath, $lineNumber, $preview] = $matches;
 
                 $this->line("File: <fg=green>{$filePath}</>");
                 $this->line("Line: <fg=yellow>{$lineNumber}</>");
                 $this->line("Preview: <fg=blue>{$preview}</>");
                 $this->line(str_repeat('-', 80));
+            }
+        }
+    }
+
+    protected function performReplacement($output, $keyword, $replaceWith)
+    {
+        $lines = explode(PHP_EOL, trim($output));
+
+        foreach ($lines as $line) {
+            if (empty($line)) continue;
+
+            preg_match('/^(.*?):(\d+):/', $line, $matches);
+            if (count($matches) == 3) {
+                $filePath = $matches[1];
+
+                if (file_exists($filePath)) {
+                    $fileContents = file_get_contents($filePath);
+                    $updatedContents = str_replace($keyword, $replaceWith, $fileContents);
+
+                    file_put_contents($filePath, $updatedContents);
+                    $this->info("Replaced '{$keyword}' with '{$replaceWith}' in file: {$filePath}");
+                }
             }
         }
     }
