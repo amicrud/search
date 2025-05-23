@@ -8,10 +8,25 @@ use Symfony\Component\Process\Process;
 
 class SearchCommand extends Command
 {
+    // The name and signature of the console command.
     protected $signature = 'amicrud:search {keyword} {--vendor} {--storage} {--replace=}';
 
+    // The console command description.
     protected $description = 'Search for a method, class, or variable in the project, optionally replacing it';
 
+    /**
+     * Execute the console command.
+     * 
+     * This command executes a grep command in the base path of the laravel project 
+     * searching for the keyword passed as argument. The command will also exclude 
+     * vendor and storage directories if the corresponding options are given.
+     * 
+     * If the --replace option is given, the command will also replace the keyword with 
+     * the given value in all the files found.
+     *
+     * @return void
+     */
+    
     public function handle()
     {
         $keyword = $this->argument('keyword');
@@ -57,6 +72,17 @@ class SearchCommand extends Command
         }
     }
 
+    /**
+     * Formats and outputs the search results.
+     *
+     * This function processes the given raw output string from the search command,
+     * extracting file paths, line numbers, and preview texts from each line.
+     * It then formats and displays each result in a readable format with color
+     * coding for better visibility.
+     *
+     * @param string $output The raw output string from the search command.
+     */
+
     protected function formatOutput($output)
     {
         $lines = explode(PHP_EOL, $output);
@@ -74,6 +100,19 @@ class SearchCommand extends Command
             }
         }
     }
+
+    /**
+     * Replaces occurrences of a keyword with a specified value in files listed in the output.
+     *
+     * This function parses the output from the search command to extract file paths,
+     * and then replaces all instances of the keyword with the provided replacement text
+     * within those files. It updates the files and logs a message indicating each successful
+     * replacement.
+     *
+     * @param string $output The raw output string from the search command containing file paths.
+     * @param string $keyword The keyword to be replaced in the files.
+     * @param string $replaceWith The text to replace the keyword with.
+     */
 
     protected function performReplacement($output, $keyword, $replaceWith)
     {
